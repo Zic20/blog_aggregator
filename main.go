@@ -1,11 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
+	_ "github.com/lib/pq"
 	"github.com/zic20/blog_aggregator/internal"
 	"github.com/zic20/blog_aggregator/internal/config"
+	"github.com/zic20/blog_aggregator/internal/database"
 )
 
 func main() {
@@ -16,7 +19,15 @@ func main() {
 		os.Exit(0)
 	}
 
+	db, err := sql.Open("postgres", cfg.DBUrl)
+	if err != nil {
+		fmt.Printf("Error loading databas: %s", err)
+		os.Exit(1)
+	}
+
+	dbQueries := database.New(db)
 	state := internal.State{
+		DB:     dbQueries,
 		Config: &cfg,
 	}
 
@@ -24,6 +35,7 @@ func main() {
 		Commands: make(map[string]func(*internal.State, internal.Command) error),
 	}
 	commands.Register("login", internal.HandlerLogin)
+	commands.Register("register", internal.HandlerRegister)
 
 	args := os.Args
 
@@ -37,13 +49,4 @@ func main() {
 	}
 
 	commands.Run(&state, command)
-
-	// cfg.SetUser("isaac")
-	// updatedConfig, err := config.Read()
-	// if err != nil {
-	// 	fmt.Printf("Error loading config: %s", err)
-	// 	os.Exit(0)
-	// }
-
-	// fmt.Print(updatedConfig)
 }

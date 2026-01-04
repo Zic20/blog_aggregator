@@ -1,14 +1,20 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/zic20/blog_aggregator/internal/config"
+	"github.com/zic20/blog_aggregator/internal/database"
 )
 
 type State struct {
+	DB     *database.Queries
 	Config *config.Config
 }
 type Command struct {
@@ -44,10 +50,45 @@ func HandlerLogin(s *State, cmd Command) error {
 		return errors.New("login handler expects one argument")
 	}
 
-	if err := s.Config.SetUser(cmd.Args[0]); err != nil {
+	username := cmd.Args[0]
+
+	_, err := s.DB.GetUserByName(context.Background(), username)
+	if err != nil {
+		fmt.Println("invalid user")
+		os.Exit(1)
 		return err
 	}
-	fmt.Printf("User %s has been set", cmd.Args[0])
+
+	if err := s.Config.SetUser(username); err != nil {
+		return err
+	}
+	fmt.Printf("User %s has been set", username)
+	return nil
+}
+
+func HandlerRegister(s *State, cmd Command) error {
+	if len(cmd.Args) == 0 {
+		fmt.Println("username is required")
+		os.Exit(1)
+		return errors.New("register handler expects one argument")
+	}
+
+	data := database.CreateUserParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.Args[0],
+	}
+	user, err := s.DB.CreateUser(context.Background(), data)
+	if err != nil {
+		fmt.Printf("Error creating user: %s", err)
+		os.Exit(1)
+	}
+
+	s.Config.SetUser(user.Name)
+	fmt.Println("User created successfully")
+	fmt.Println(user)
+
 	return nil
 }
 
