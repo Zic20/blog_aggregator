@@ -83,6 +83,7 @@ func HandlerRegister(s *State, cmd Command) error {
 	if err != nil {
 		fmt.Printf("Error creating user: %s", err)
 		os.Exit(1)
+		return err
 	}
 
 	s.Config.SetUser(user.Name)
@@ -92,19 +93,29 @@ func HandlerRegister(s *State, cmd Command) error {
 	return nil
 }
 
-// func GetCommands() map[string]cliCommand {
-// 	return map[string]cliCommand{
-// 		"login": {
-// 			name:        "login",
-// 			description: "sets the current user in the config",
-// 		},
-// 		"register": {
-// 			name:        "register",
-// 			description: "adds a new user to the database",
-// 		},
-// 		"users": {
-// 			name:        "users",
-// 			description: "lists all the users in the database",
-// 		},
-// 	}
-// }
+func HandlerGetUsers(s *State, cmd Command) error {
+	users, err := s.DB.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, user := range users {
+		if user.Name == s.Config.CurrentUserName {
+			fmt.Printf("* %s (current)\n", user.Name)
+		} else {
+			fmt.Printf("* %s\n", user.Name)
+		}
+	}
+	return nil
+}
+
+func HandlerDelete(s *State, _ Command) error {
+	if err := s.DB.DeleteAllUsers(context.Background()); err != nil {
+		fmt.Printf("Reset failed: %s", err)
+		os.Exit(1)
+		return err
+	}
+
+	fmt.Print("Reset completed successfully")
+	return nil
+}
