@@ -34,7 +34,7 @@ func (c *Commands) Run(s *State, cmd Command) error {
 
 	err := handler(s, cmd)
 	if err != nil {
-		return fmt.Errorf("Error occured while running %s command", cmd.Name)
+		return fmt.Errorf("Error occured while running %s command: %s", cmd.Name, err)
 	}
 
 	return nil
@@ -202,6 +202,23 @@ func HandlerFollow(s *State, cmd Command) error {
 	}
 
 	fmt.Printf("%s now follows %s", feed_follow.UserName, feed_follow.FeedName)
+
+	return nil
+}
+
+func HandlerFollowing(s *State, _ Command) error {
+	user, err := s.DB.GetUserByName(context.Background(), s.Config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Error fetching current user: %s", err)
+	}
+	feed_follows, err := s.DB.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		return fmt.Errorf("Error fetching %s feeds follow: %s", s.Config.CurrentUserName, err)
+	}
+
+	for _, follow := range feed_follows {
+		fmt.Printf("%s\n", follow.FeedName)
+	}
 
 	return nil
 }
