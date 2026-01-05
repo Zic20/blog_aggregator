@@ -11,6 +11,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/zic20/blog_aggregator/internal/config"
 	"github.com/zic20/blog_aggregator/internal/database"
+	"github.com/zic20/blog_aggregator/internal/rss"
 )
 
 type State struct {
@@ -117,5 +118,48 @@ func HandlerDelete(s *State, _ Command) error {
 	}
 
 	fmt.Print("Reset completed successfully")
+	return nil
+}
+
+func HandlerAGG(s *State, _ Command) error {
+	feed, err := rss.FetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		fmt.Print(err)
+		return err
+	}
+
+	fmt.Print(*feed)
+
+	return nil
+}
+
+func HandlerAddFeed(s *State, cmd Command) error {
+	if len(cmd.Args) < 2 {
+		fmt.Println("addfeed expects two arguments")
+		os.Exit(1)
+		return errors.New("addfeed expects two arguments")
+	}
+
+	user, err := s.DB.GetUserByName(context.Background(), s.Config.CurrentUserName)
+	if err != nil {
+		fmt.Println("user not found")
+		return fmt.Errorf("Error fetching current user: %s", err)
+	}
+
+	data := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.Args[0],
+		Url:       cmd.Args[1],
+		UserID:    user.ID,
+	}
+
+	feed, err := s.DB.CreateFeed(context.Background(), data)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(feed)
 	return nil
 }
