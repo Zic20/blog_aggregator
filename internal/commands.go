@@ -170,3 +170,38 @@ func HandlerFeeds(s *State, _ Command) error {
 	fmt.Println(feeds)
 	return nil
 }
+
+func HandlerFollow(s *State, cmd Command) error {
+	if len(cmd.Args) != 1 {
+		fmt.Println("follow expects exactly one argument")
+		os.Exit(1)
+		return errors.New("follow expects exactly one argument")
+	}
+	ctx := context.Background()
+	user, err := s.DB.GetUserByName(ctx, s.Config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("Error fetching current user: %s", err)
+	}
+
+	feed, err := s.DB.GetFeedByUrl(ctx, cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("error fetching feed: %s", err)
+	}
+
+	data := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	}
+
+	feed_follow, err := s.DB.CreateFeedFollow(ctx, data)
+	if err != nil {
+		return fmt.Errorf("error creating feed_follow: %s", err)
+	}
+
+	fmt.Printf("%s now follows %s", feed_follow.UserName, feed_follow.FeedName)
+
+	return nil
+}
