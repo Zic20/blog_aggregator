@@ -40,6 +40,7 @@ func main() {
 	commands.Register("users", internal.HandlerGetUsers)
 	commands.Register("agg", internal.HandlerAGG)
 	commands.Register("addfeed", internal.HandlerAddFeed)
+	commands.Register("feeds", internal.HandlerFeeds)
 
 	args := os.Args
 
@@ -52,5 +53,7 @@ func main() {
 		Args: args[2:],
 	}
 
-	commands.Run(&state, command)
+	if err = commands.Run(&state, command); err != nil {
+		fmt.Println(err)
+	}
 }
