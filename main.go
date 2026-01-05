@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -39,10 +40,10 @@ func main() {
 	commands.Register("reset", internal.HandlerDelete)
 	commands.Register("users", internal.HandlerGetUsers)
 	commands.Register("agg", internal.HandlerAGG)
-	commands.Register("addfeed", internal.HandlerAddFeed)
 	commands.Register("feeds", internal.HandlerFeeds)
-	commands.Register("follow", internal.HandlerFollow)
-	commands.Register("following", internal.HandlerFollowing)
+	commands.Register("addfeed", middlewareLoggedIn(internal.HandlerAddFeed))
+	commands.Register("follow", middlewareLoggedIn(internal.HandlerFollow))
+	commands.Register("following", middlewareLoggedIn(internal.HandlerFollowing))
 
 	args := os.Args
 
@@ -57,5 +58,15 @@ func main() {
 
 	if err = commands.Run(&state, command); err != nil {
 		fmt.Println(err)
+	}
+}
+
+func middlewareLoggedIn(handler func(s *internal.State, cmd internal.Command, user database.User) error) func(*internal.State, internal.Command) error {
+	return func(s *internal.State, cmd internal.Command) error {
+		user, err := s.DB.GetUserByName(context.Background(), s.Config.CurrentUserName)
+		if err != nil {
+			return err
+		}
+		return handler(s, cmd, user)
 	}
 }

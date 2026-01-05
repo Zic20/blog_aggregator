@@ -132,7 +132,7 @@ func HandlerAGG(s *State, _ Command) error {
 	return nil
 }
 
-func HandlerAddFeed(s *State, cmd Command) error {
+func HandlerAddFeed(s *State, cmd Command, user database.User) error {
 	if len(cmd.Args) < 2 {
 		fmt.Println("addfeed expects two arguments")
 		os.Exit(1)
@@ -175,7 +175,7 @@ func HandlerAddFeed(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerFeeds(s *State, _ Command) error {
+func HandlerFeeds(s *State, cmd Command) error {
 	feeds, err := s.DB.ListFeeds(context.Background())
 	if err != nil {
 		return fmt.Errorf("Error fetching feeds: %s", err)
@@ -184,17 +184,13 @@ func HandlerFeeds(s *State, _ Command) error {
 	return nil
 }
 
-func HandlerFollow(s *State, cmd Command) error {
+func HandlerFollow(s *State, cmd Command, user database.User) error {
 	if len(cmd.Args) != 1 {
 		fmt.Println("follow expects exactly one argument")
 		os.Exit(1)
 		return errors.New("follow expects exactly one argument")
 	}
 	ctx := context.Background()
-	user, err := s.DB.GetUserByName(ctx, s.Config.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("Error fetching current user: %s", err)
-	}
 
 	feed, err := s.DB.GetFeedByUrl(ctx, cmd.Args[0])
 	if err != nil {
@@ -219,11 +215,7 @@ func HandlerFollow(s *State, cmd Command) error {
 	return nil
 }
 
-func HandlerFollowing(s *State, _ Command) error {
-	user, err := s.DB.GetUserByName(context.Background(), s.Config.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("Error fetching current user: %s", err)
-	}
+func HandlerFollowing(s *State, cmd Command, user database.User) error {
 	feed_follows, err := s.DB.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		return fmt.Errorf("Error fetching %s feeds follow: %s", s.Config.CurrentUserName, err)
