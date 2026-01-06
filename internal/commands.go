@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -129,10 +130,10 @@ func HandlerAGG(s *State, cmd Command) error {
 
 	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
-		return fmt.Errorf("couldn't parse <time_between_rq>: %v", err)
+		return fmt.Errorf("couldn't parse <time_between_rq>: %v \n", err)
 	}
 
-	fmt.Printf("Collecting feeds ever %s", timeBetweenRequests)
+	fmt.Printf("Collecting feeds ever %s\n", timeBetweenRequests)
 
 	ticker := time.NewTicker(timeBetweenRequests)
 
@@ -252,10 +253,32 @@ func HandlerUnfollow(s *State, cmd Command, user database.User) error {
 	return nil
 }
 
+func HandlerBrowse(s *State, cmd Command) error {
+	limit := 2
+	if len(cmd.Args) > 0 {
+		var err error
+		limit, err = strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			return fmt.Errorf("Error converting <limit>: %v to int\n", err)
+		}
+	}
+
+	posts, err := s.DB.GetPostsByLimit(context.Background(), int32(limit))
+	if err != nil {
+		return fmt.Errorf("Error fetching posts: %s", err)
+	}
+
+	for _, post := range posts {
+		fmt.Printf("Title: %s\nDescription: %s\n", post.Title, post.Description)
+	}
+
+	return nil
+}
+
 func scrapeFeeds(s *State) {
 	next_feed, err := s.DB.GetNextFeedToFetch(context.Background())
 	if err != nil {
-		log.Printf("Couldn't get last fetched feed: %v", err)
+		log.Printf("Couldn't get last fetched feed: %v \n", err)
 		return
 	}
 
@@ -265,18 +288,36 @@ func scrapeFeeds(s *State) {
 func scrapeFeed(db *database.Queries, feed database.Feed) {
 	_, err := db.MarkAsFetched(context.Background(), feed.ID)
 	if err != nil {
-		log.Printf("Couldn't mark feed as fetched: %v", err)
+		log.Printf("Couldn't mark feed as fetched: %v\n", err)
 		return
 	}
 
 	feedData, err := rss.FetchFeed(context.Background(), feed.Url)
 	if err != nil {
-		log.Printf("Error fetching feed data: %v", err)
+		log.Printf("Error fetching feed data: %v\n", err)
 		return
 	}
 
 	for _, item := range feedData.Channel.Item {
-		fmt.Printf("Post found: %s", item.Title)
+		parsedTime, err := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", item.PubDate)
+		if err != nil {
+			fmt.Printf("Error parsing date for Post: %s\n Date Error: %s\n\n", item.Title, err)
+			continue
+		}
+		post := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			PublishedAt: parsedTime,
+			Title:       item.Title,
+			Description: item.Description,
+			Url:         item.Link,
+			FeedID:      feed.ID,
+		}
+
+		if _, err = db.CreatePost(context.Background(), post); err != nil {
+			fmt.Printf("Could not save post (%s) to database", item.Title)
+		}
 	}
 
 	log.Printf("Feed %s collected, %v posts found", feed.Name, len(feedData.Channel.Item))
